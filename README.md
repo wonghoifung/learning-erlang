@@ -1,4 +1,4 @@
 frog-erlang
 ===========
 
-A network framework based on erlang
+A network testing framework based on erlang

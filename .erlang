@@ -1,0 +1,2 @@
+code:add_patha("ebin").
+io:format("Hi, I'm in your .erlang file~n").

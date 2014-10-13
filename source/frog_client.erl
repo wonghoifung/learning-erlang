@@ -9,10 +9,10 @@ send() ->
 			[binary, {packet, 0}]),
 	print_peer_addr("connected",Socket),
 
-	Int1=999,
-	Short1=888,
-	Short2=777,
-	Int2=666,
+	Int1=1,
+	Short1=2,
+	Short2=3,
+	Int2=4,
 	
 	L1 = encode([],{int32,Int1}),
 	L2 = encode(L1,{int16,Short1}),

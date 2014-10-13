@@ -19,7 +19,6 @@ print_peer_addr(L, Socket) ->
 	L4 = L3 ++ integer_to_list(PeerPort),
 	io:format("~s~n",[L4]).
 
-%%%%%% client %%%%%%
 %header: | flag_2 | cmd_2 | version_1 | subversion_1 | bodylen_2 | checkcode_1 |
 send() ->
     {ok, Socket} = 
@@ -31,15 +30,15 @@ send() ->
 	StrLen=length(binary_to_list(Str))+1,
 	StrList=binary_to_list(<<StrLen:32>>)++binary_to_list(Str)++fill(0,1,[]),
 
-	Int1=1,
-	Short1=2,
-	Short2=3,
-	Int2=4,
-
+	Int1=999,
+	Short1=888,
+	Short2=777,
+	Int2=666,
+	
 	Cmd=123,
 	Ver=7,
 	SVer=8,
-	BodyLen=4+2+StrLen+2+4,
+	BodyLen=4+2+4+StrLen+2+4,
 	ChkCode=0,
 	
 	Request=[16#47]++[16#50]++binary_to_list(<<Cmd:16>>)++
@@ -54,11 +53,7 @@ send() ->
 							  binary_to_list(<<Int2:32>>),
 	ok = gen_tcp:send(Socket, list_to_binary(Request)),
 	io:format("to receive~n"),
-    receive
-	{tcp,Socket,_Bin} ->
-		io:format("received...~n"),
-	    gen_tcp:close(Socket)
-    end.
+	loop(Socket,<<>>).
 
 loop(Socket,Left) ->
     receive
@@ -66,7 +61,8 @@ loop(Socket,Left) ->
 		Buffer=list_to_binary(binary_to_list(Left) ++ binary_to_list(Bin)),
 		case decode(Buffer) of
 			{ok,Remaining} ->
-				loop(Socket,Remaining);
+				Remaining,
+			    gen_tcp:close(Socket);
 			{not_enough_bytes} ->
 				loop(Socket,Buffer)	
 		end;
@@ -81,9 +77,12 @@ decode(Buffer) ->
 		BodyLen:16/big,_ChkCode:8,Body:BodyLen/binary-unit:8,
 		Left/binary>> ->
 			case Cmd of
-				1 ->
-					<<ID:32/big>> = Body,
-					io:format("cmd:1, id:~s~n",[integer_to_list(ID)]);
+				321 ->
+					<<ID:32/big,StrLen:32/big,Str:StrLen/binary-unit:8>> = Body,
+					L = "id:" ++ integer_to_list(ID) ++ 
+					    " strlen:" ++ integer_to_list(StrLen) ++ 
+						" str:" ++ Str,
+					io:format("receive cmd:321, ~s~n",[L]);
 				Other ->
 					io:format("unknown cmd:~s~n",[integer_to_list(Other)])
 			end,

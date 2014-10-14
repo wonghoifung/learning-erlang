@@ -1,7 +1,7 @@
 -module(frog_client).
 -export([send/1,start_kvs/0,start/1]).
 -import(marshalling, [encode/2, decode/1]).
--import(utils, [print_peer_addr/2]).
+-import(utils, [print_peer_addr/2, peer_to_list/1]).
 
 start_kvs() ->
 	register(kvs,spawn(fun() -> dict() end)).
@@ -108,15 +108,11 @@ on_message({Socket,Cmd,Body}) ->
     case Cmd of
         321 ->
 		    <<ID:32/big,StrLen:32/big,Str:StrLen/binary-unit:8>> = Body,
-			L = "id:" ++ integer_to_list(ID) ++ 
-			" strlen:" ++ integer_to_list(StrLen) ++ 
-			" str:" ++ Str,
-			L,
-			%io:format("receive cmd:321, ~s~n",[L]),
+			%io:format("process:~p peer:~p receive:[~p,~p]~n",
+			%	[self(),peer_to_list(Socket),ID,list_to_atom(binary_to_list(Str))]),
 			gen_tcp:close(Socket),
 			{ok};
 		Other -> 
-			Other,
 			gen_tcp:close(Socket),
-			{error,unknown_message}
+			{error,list_to_atom("unknown_message_" ++ integer_to_list(Other))}
 	end.

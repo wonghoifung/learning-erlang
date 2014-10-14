@@ -1,29 +1,93 @@
 -module(frog_client).
--export([send/0]).
+-export([send/1,start_kvs/0,start/1]).
 -import(marshalling, [encode/2, decode/1]).
 -import(utils, [print_peer_addr/2]).
 
-send() ->
-    {ok, Socket} = 
-	gen_tcp:connect("localhost", 9878,
-			[binary, {packet, 0}]),
-	print_peer_addr("connected",Socket),
+start_kvs() ->
+	register(kvs,spawn(fun() -> dict() end)).
 
-	Int1=1,
-	Short1=2,
-	Short2=3,
-	Int2=4,
+dict() ->  
+	receive  
+		{From,{store,Key,Value}} ->  
+			From,
+			put(Key,Value),  
+			dict();  
+		{From,{lookup,Key}} ->  
+			From ! {lookup,get(Key)},  
+		dict()  
+	end.
+
+for(N, N, F) -> [F(N)];
+for(I, N, F) -> [F(I)|for(I+1, N, F)].
+
+timestamp() ->
+	{M, S, _} = os:timestamp(),
+	M * 1000000 + S.
+
+start(N) ->
+	for(1, N, fun(ID) -> spawn_monitor(frog_client,send,[ID]) end),
+	put(successcount,0),
+	for(1, N, fun(ID) -> ID,wait() end),
+	io:format("successcount:~p~n",[get(successcount)]).
+
+wait() ->
+    receive
+		{'DOWN',R,process,P,Why} ->
+			R,
+			
+			case Why of
+				ok ->
+					Count = get(successcount),
+					put(successcount,Count+1);
+				_ ->
+					void
+			end,
+
+			kvs ! { self(), {lookup,P} },
+			receive 
+				{lookup, Start} ->
+					End = timestamp(),
+					Elasped = End - Start,
+					io:format("process:~p,~p elasped:~pseconds ~n",[P,Why,Elasped])
+			after 1000 ->
+					io:format("process:~p, cannot find start time~n",[P])
+			end	
+    end.
+
+send(ID) ->
+	ID,
+	kvs ! { self(), {store,self(),timestamp()} },
+	%print_peer_addr("connected",Socket),
+	case gen_tcp:connect("localhost", 9878, [binary, {packet, 0}]) of
+		{ok,Socket} ->
+			Int1=999,
+			Short1=888,
+			Short2=777,
+			Int2=666,
 	
-	L1 = encode([],{int32,Int1}),
-	L2 = encode(L1,{int16,Short1}),
-	L3 = encode(L2,{cstr,<<"helloworld">>}),
-	L4 = encode(L3,{int16,Short2}),
-	L5 = encode(L4,{int32,Int2}),
-	Request = encode(L5,{done,123}),
+			L1 = encode([],{int32,Int1}),
+			L2 = encode(L1,{int16,Short1}),
+			L3 = encode(L2,{cstr,<<"helloworld">>}),
+			L4 = encode(L3,{int16,Short2}),
+			L5 = encode(L4,{int32,Int2}),
+			Request = encode(L5,{done,123}),
 	
-	ok = gen_tcp:send(Socket, list_to_binary(Request)),
-	io:format("to receive~n"),
-	expect_message(Socket,<<>>).
+			case gen_tcp:send(Socket, list_to_binary(Request)) of
+				ok ->
+					case expect_message(Socket,<<>>) of
+						{ok} ->
+							exit(ok);
+						{error,Reason} ->
+							exit(list_to_atom("message_error_" ++ atom_to_list(Reason)))
+					end;
+				{error, Reason} ->
+					gen_tcp:close(Socket),
+					exit(list_to_atom("cannot_send_" ++ atom_to_list(Reason)))
+			end;
+		{R1,R2} ->
+			R1,
+			exit(list_to_atom("cannot_connect_" ++ atom_to_list(R2)))
+	end.
 
 expect_message(Socket,Left) ->
     receive
@@ -37,7 +101,7 @@ expect_message(Socket,Left) ->
 				expect_message(Socket,Buffer)	
 		end;
 	{tcp_closed, Socket} ->
-		io:format("peer closed~n")
+		{error,peer_closed}
     end.
 	
 on_message({Socket,Cmd,Body}) ->
@@ -47,8 +111,12 @@ on_message({Socket,Cmd,Body}) ->
 			L = "id:" ++ integer_to_list(ID) ++ 
 			" strlen:" ++ integer_to_list(StrLen) ++ 
 			" str:" ++ Str,
-			io:format("receive cmd:321, ~s~n",[L]),
-			gen_tcp:close(Socket);
+			L,
+			%io:format("receive cmd:321, ~s~n",[L]),
+			gen_tcp:close(Socket),
+			{ok};
 		Other -> 
-		    io:format("unknown cmd:~s~n",[integer_to_list(Other)])
+			Other,
+			gen_tcp:close(Socket),
+			{error,unknown_message}
 	end.

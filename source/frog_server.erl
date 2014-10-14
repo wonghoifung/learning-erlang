@@ -1,4 +1,4 @@
--module(gpsock).
+-module(frog_server).
 -compile(export_all).
 -import(lists, [reverse/1]).
 

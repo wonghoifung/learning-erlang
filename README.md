@@ -19,10 +19,10 @@ true
 
 2> frog_client:start(10).
 
-process:<0.43.0>,cannot_connect_econnrefused elasped:0seconds 
+process:<0.37.0>,ok elasped:0seconds 
 
-process:<0.42.0>,cannot_connect_econnrefused elasped:0seconds 
+process:<0.38.0>,ok elasped:0seconds 
 
-process:<0.41.0>,cannot_connect_econnrefused elasped:0seconds 
+process:<0.39.0>,ok elasped:0seconds
 
 ...

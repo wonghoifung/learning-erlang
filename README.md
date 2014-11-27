@@ -1,7 +1,7 @@
 frog-erlang
 ===========
 
-A network framework based on Erlang
+A naive network framework based on Erlang
 
 The frog_server(erlang) does the same thing with the example server in frog(c++) repos, but acts slower.
 

@@ -1,4 +1,4 @@
-frog-erlang
+learning-erlang
 ===========
 
 learning erlang
